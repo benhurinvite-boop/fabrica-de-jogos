@@ -116,9 +116,10 @@ export const Dialogo = {
   },
 
   /** Dica curta no topo da tela, sem pausar o jogo. */
-  dica(quem, texto, ms = 3200) {
+  dica(quem, texto, ms = 3200, clipe = null) {
     monta(); if (this.ativo) return;
-    mostraQuem(quem); el.caixa.className = 'on dica'; el.pe.textContent = '';
+    mostraQuem(quem); const pc = cfg.personagens[quem];
+    if (cfg.clipe && (clipe || (pc && pc.clipes))) cfg.clipe(clipe || pc.clipes[Math.floor(Math.random() * pc.clipes.length)]); el.caixa.className = 'on dica'; el.pe.textContent = '';
     digita(texto, quem, () => {});
     clearTimeout(this._t); this._t = setTimeout(() => { if (!this.ativo) el.caixa.className = ''; }, ms);
   },
