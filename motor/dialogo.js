@@ -45,7 +45,7 @@ function monta() {
 }
 
 function voz(quem) {
-  const a = cfg.audio(); const p = cfg.personagens[quem]; if (!a || !p || !p.voz) return;
+  const a = cfg.audio(); const p = cfg.personagens[quem]; if (!a || !p || !p.voz || p.clipes) return;
   if (!saida || saida.context !== a) {
     saida = a.createDynamicsCompressor();
     saida.threshold.value = -18; saida.ratio.value = 8; saida.attack.value = 0.003; saida.release.value = 0.1;
@@ -102,6 +102,7 @@ export const Dialogo = {
         if (digitando && completa) { completa(); return; }
         i++; if (i >= linhas.length) { termina(); return; }
         const l = linhas[i]; mostraQuem(l.quem); el.pe.textContent = '';
+        const pc = cfg.personagens[l.quem]; if (pc && pc.clipes && cfg.clipe) cfg.clipe(pc.clipes[Math.floor(Math.random() * pc.clipes.length)]);
         if (aoLinha) aoLinha(l, i);
         digitando = true;
         completa = digita(l.texto, l.quem, () => { digitando = false; el.pe.textContent = cfg.textos.continuar + ' ▸'; });

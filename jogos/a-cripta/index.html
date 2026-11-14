@@ -64,6 +64,7 @@ import {Idioma,t as tr} from '../../motor/idioma.js';
 import {Dialogo} from '../../motor/dialogo.js';
 import {TEXTOS} from './textos.js';
 import {Musica} from '../../motor/musica.js';
+import {Sons} from '../../motor/sons.js';
 import {criaExercito} from './exercito.js';
 import {BONUS,escolheBencao} from './bencaos.js';
 Idioma.registrar(TEXTOS);
@@ -306,6 +307,7 @@ function rastro(p,cor){explosao('santo',p.clone().setY(1.1),4,2,.35,.18,0)}
 function golpeArea(c,raio,dano,o={}){let n=0;for(const e of inimigos){if(e.hp<=0||e.estado==='dormindo'||e.estado==='despertando')continue;const d=e.b.obj.position.distanceTo(c);if(d<raio+(e.T.chefe?1.4:.4)){fere(e,dano,o);n++}}if(n){pausaT=.05;tremor=Math.max(tremor,.12)}return n}
 function fere(e,dano,o={}){if(e.T.escudo&&heroi){const o2=e.b.obj;const ang=Math.atan2(heroi.obj.position.x-o2.position.x,heroi.obj.position.z-o2.position.z);let df=ang-o2.rotation.y;while(df>Math.PI)df-=Math.PI*2;while(df<-Math.PI)df+=Math.PI*2;
  if(e.estado==='atordoado')dano*=1.6;else if(Math.abs(df)<1.15){dano*=.25;if(!e._blq||performance.now()-e._blq>700){e._blq=performance.now();numero(o2.position.clone().setY(4.4),tr('bloqueado'),'b');explosao('santo',o2.position.clone().add(new THREE.Vector3(Math.sin(o2.rotation.y)*1.2,1.4,Math.cos(o2.rotation.y)*1.2)),6,3,.3,.25,0)}}}
+ if(e.T.chefe==='capitao'&&dano>8&&(!e._dor||performance.now()-e._dor>1500)){e._dor=performance.now();Sons.aleatorio(['capitao_dor_1','capitao_dor_2'],.9)}
  const crit=o.crit||Math.random()<.12+BONUS.crit;const d=Math.round(dano*(crit?2:1)*rand(.9,1.1));e.hp-=d;numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),d,crit?'c':'');STATS.dano+=d;brilha(e.b);
  explosao('osso',e.b.obj.position.clone().setY(1.2),crit?10:5,3.5,.3,.45);
  if(o.kb&&!e.T.chefe){tmp.copy(e.b.obj.position).sub(heroi.obj.position).setY(0).normalize().multiplyScalar(o.kb);e.kb.copy(tmp)}
@@ -338,10 +340,10 @@ function esquivar(hab=false,teleporte=false){if(!ESTADO.jogando||emCena||morto)r
 function bebe(){if(!ESTADO.jogando||emCena||morto)return;if(pocoes<=0){toast(tr('semPocoes'),'ruim');return}if(vida>=vidaMax){toast(tr('vidaCheia'));return}pocoes--;cura(vidaMax*.5);explosao('sangue',heroi.obj.position.clone().setY(1),16,2,.5,.6,3);hud()}
 function cura(v){const a=vida;vida=Math.min(vidaMax,vida+v);numero(heroi.obj.position.clone().setY(2.8),'+'+Math.round(vida-a),'v');hud()}
 function feriHeroi(d){if(inv>0||morto)return;d=Math.round(d*rand(.9,1.1));vida-=d;inv=.45;numero(heroi.obj.position.clone().setY(2.8),d,'r');brilha(heroi,0xff2010,.12);som('dor');tremor=Math.max(tremor,.18);
- if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');setTimeout(()=>fim(false),1800)}hud()}
+ if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');if(chefe&&chefe.hp>0&&chefe.T.chefe==='capitao'&&chefe.estado!=='dormindo')Sons.tocar('capitao_risada');setTimeout(()=>fim(false),1800)}hud()}
 function mata(e){e.estado='morto';e.hp=0;STATS.abates++;const p=e.b.obj.position.clone();toca(e.b,e.T.rig==='L'?'Death_A':'Skeletons_Death',{vez:true});som('osso');explosao('osso',p.clone().setY(1),16,4,.45,.6);
  ganhaXP(e.T.xp);if(BONUS.sifao&&!morto)cura(vidaMax*BONUS.sifao);if(!e.T.chefe){if(!DICAS.ex&&Exercito.ALIADOS.length<Exercito.max()){DICAS.ex=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.exercito')),900)}Exercito.ergue(e)}const n=e.T.chefe?30:Math.floor(rand(2,6));for(let i=0;i<n;i++)setTimeout(()=>moeda(p),i*30);
- if(e.T.chefe){chefeMorreu(e);Musica.jingle('vitoria');setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
+ if(e.T.chefe){if(e.T.chefe==='capitao')Sons.tocar('capitao_morte');chefeMorreu(e);Musica.jingle('vitoria');setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
  setTimeout(()=>{const o=e.b.obj;const t0=performance.now();const af=()=>{const k=(performance.now()-t0)/1200;o.position.y=-k*1.6;if(k<1)requestAnimationFrame(af);else{scene.remove(o)}};af()},e.T.chefe?6000:2200);
  const sala=salas[e.sala];if(sala&&!sala.feita&&inimigos.filter(x=>x.sala===e.sala&&x.hp>0).length===0){sala.feita=true;if(!sala.chefe){banner(tr('salaLimpa'),'',1400);som('lend');Musica.tema('explorar');setTimeout(()=>oferecerBencao().then(()=>{abrePortas(sala);objetivo(tr('obj.siga'));Dialogo.dica('pip',tr('dicas.salaLimpa'))}),1500)}}else atualizaObjetivo()}
 function abrePortas(s){for(const [x,z] of s.portas){const p=PORTAS.get(pk(x,z));if(p&&!salas.some(o=>o!==s&&o.ativa&&!o.feita&&o.portas.some(([a,b])=>a===x&&b===z))){p.trancada=false;p.alvo=-3.7}}som('osso')}
@@ -403,7 +405,7 @@ async function oferecerBencao(){if(morto||!ESTADO.jogando)return;emCena=true;Pla
  emCena=false;Plataforma.jogoInicio();toast('✦ '+tr('bencaos.'+x.k+'.n'),'lend');som('lend');hudExer()}
 let MUDO=!!Plataforma.ler('mudo',false);
 function aplicaMudo(){$('mudo').textContent=MUDO?'🔇':'🔊';if(AC){try{MUDO?AC.suspend():AC.resume()}catch(e){}}}
-function ligaSom(){const a=ac();if(!a)return;Musica.iniciar(a);if(MUDO)aplicaMudo()}
+function ligaSom(){const a=ac();if(!a)return;Musica.iniciar(a);Sons.iniciar(a);if(MUDO)aplicaMudo()}
 
 // ---------- Pip, o fantasma-lanterna ----------
 let PIP=null;
@@ -428,12 +430,12 @@ function atualizaCapitao(dt,e){const o=e.b.obj;const h=heroi.obj.position;const 
  $('chefe').querySelector('i').style.transform=`scaleX(${clamp(e.hp/e.max,0,1)})`;
  const furia=e.hp<e.max*.5;e.cdInv=(e.cdInv??3)-dt;
  if(e.estado==='atordoado'){e.atT-=dt;if(Math.random()<.2)particula('santo',o.position.clone().add(new THREE.Vector3(rand(-.6,.6),4.2,rand(-.6,.6))),new THREE.Vector3(0,.5,0),.4,.3,0);if(e.atT<=0){e.estado='caçando';o.rotation.z=0}else o.rotation.z=Math.sin(e.atT*14)*.06;return}
- if(e.estado==='preparando'){e.prT-=dt;e.faixa.material.opacity=.25+.3*Math.abs(Math.sin(e.prT*16));if(e.prT<=0){e.estado='investindo';e.invT=1.1;e.acertou=false;toca(e.b,'Running_A',{vel:1.8});som('urro')}return}
+ if(e.estado==='preparando'){e.prT-=dt;e.faixa.material.opacity=.25+.3*Math.abs(Math.sin(e.prT*16));if(e.prT<=0){e.estado='investindo';e.invT=1.1;e.acertou=false;toca(e.b,'Running_A',{vel:1.8});Sons.tocar('capitao_investida')||som('urro')}return}
  if(e.estado==='investindo'){e.invT-=dt;const passo=e.dir.clone().multiplyScalar((furia?19:16)*dt);const ax=o.position.x,az=o.position.z;move(o.position,passo,1.1);const andou=Math.hypot(o.position.x-ax,o.position.z-az);
   if(Math.random()<.6)particula('osso',o.position.clone().setY(.2),new THREE.Vector3(rand(-1,1),1.5,rand(-1,1)),.4,.5,0);
   if(!e.acertou&&o.position.distanceTo(h)<2.2){e.acertou=true;feriHeroi(e.T.dano*1.6);heroiEmpurra(e.dir,7)}
   if(andou<passo.length()*.4){// bateu na parede: fica tonto
-   e.estado='atordoado';e.atT=furia?1.7:2.2;scene.remove(e.faixa);e.faixa=null;tremor=.7;pausaT=.06;som('boom');explosao('osso',o.position.clone().add(e.dir.clone().multiplyScalar(1.5)).setY(1.5),30,6,.6,.7);toast(tr('atordoado'));toca(e.b,'Hit_A',{vez:true,vel:.6});return}
+   e.estado='atordoado';e.atT=furia?1.7:2.2;scene.remove(e.faixa);e.faixa=null;tremor=.7;pausaT=.06;som('boom');explosao('osso',o.position.clone().add(e.dir.clone().multiplyScalar(1.5)).setY(1.5),30,6,.6,.7);toast(tr('atordoado'));Sons.tocar('capitao_tonto');toca(e.b,'Hit_A',{vez:true,vel:.6});return}
   if(e.invT<=0){e.estado='caçando';scene.remove(e.faixa);e.faixa=null;e.cdA=.8}return}
  if(e.estado==='atacando'){e.atkT-=dt;if(!e.golpeou&&e.atkT<.45){e.golpeou=true;const c=o.position.clone().add(new THREE.Vector3(Math.sin(o.rotation.y)*2,0,Math.cos(o.rotation.y)*2));if(c.distanceTo(h)<2.4)feriHeroi(e.T.dano);som('swing')}if(e.atkT<=0){e.estado='caçando';e.cdA=furia?.9:1.4}return}
  e.cdA=(e.cdA??1)-dt;vira2(o,h);
@@ -442,7 +444,7 @@ function atualizaCapitao(dt,e){const o=e.b.obj;const h=heroi.obj.position;const 
   m.rotation.x=-Math.PI/2;m.rotation.z=o.rotation.y+Math.PI;m.position.set(o.position.x,.07,o.position.z);scene.add(m);e.faixa=m;toca(e.b,'Skeletons_Idle');if(!DICAS.inv){DICAS.inv=1;Dialogo.dica('pip',tr('dicas.investida'))}return}
  if(d<=e.T.alc&&e.cdA<=0){e.estado='atacando';e.golpeou=false;e.atkT=.9;toca(e.b,e.T.ataque,{vez:true,vel:1.1});return}
  if(d>e.T.alc*.85){toca(e.b,'Skeletons_Walking',{vel:1.2});tmp.copy(h).sub(o.position).setY(0).normalize().multiplyScalar(e.T.vel*(furia?1.25:1)*dt);move(o.position,tmp,1.1)}else toca(e.b,'Skeletons_Idle');
- if(!e.chamou&&furia){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.capitao')}),'ruim');som('urro');for(let j=0;j<2;j++){const a=j*Math.PI+.8;criaInimigo({c:'k',x:o.position.x+Math.cos(a)*4,z:o.position.z+Math.sin(a)*4}).then(n=>{n.sala=-1;desperta(n,200+j*300)})}}}
+ if(!e.chamou&&furia){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.capitao')}),'ruim');Sons.tocar('capitao_risada')||som('urro');for(let j=0;j<2;j++){const a=j*Math.PI+.8;criaInimigo({c:'k',x:o.position.x+Math.cos(a)*4,z:o.position.z+Math.sin(a)*4}).then(n=>{n.sala=-1;desperta(n,200+j*300)})}}}
 function heroiEmpurra(dir,f){const p=heroi.obj.position;for(let k=0;k<8;k++)move(p,dir.clone().multiplyScalar(f/8*.35))}
 
 // ---------- saída para o Andar 2 ----------
@@ -529,9 +531,10 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
  await Promise.all([...CLASSES.map(c=>carrega(c.k+'.glb')),...['Skeleton_Minion','Skeleton_Rogue','Skeleton_Mage','Skeleton_Warrior','Skeleton_Golem'].map(a=>carrega(a+'.glb'))]);
  await Promise.all(SPAWNS.map(s=>criaInimigo(s)));
  Idioma.aplicar();
- Dialogo.configurar({audio:ac,textos:{get pular(){return tr('pular')},get continuar(){return tr('continuar')}},personagens:{
+ Sons.carregar(M+'vozes/',['capitao_fala_1','capitao_fala_2','capitao_fala_3','capitao_risada','capitao_investida','capitao_dor_1','capitao_dor_2','capitao_tonto','capitao_morte']);
+ Dialogo.configurar({audio:ac,clipe:n=>Sons.tocar(n),textos:{get pular(){return tr('pular')},get continuar(){return tr('continuar')}},personagens:{
   pip:{nome:()=>tr('nomes.pip'),cor:'#5ab8ff',cor2:'#e8f8ff',letra:'P',voz:{freq:620,tipo:'triangle',vol:.1}},
-  capitao:{nome:()=>tr('nomes.capitao'),cor:'#d8c8a0',cor2:'#fff8e0',letra:'C',voz:{freq:150,tipo:'sawtooth',formante:420,vol:.13}},
+  capitao:{nome:()=>tr('nomes.capitao'),cor:'#d8c8a0',cor2:'#fff8e0',letra:'C',voz:{freq:150,tipo:'sawtooth',formante:420,vol:.13},clipes:['capitao_fala_1','capitao_fala_2','capitao_fala_3']},
   gorrath:{nome:()=>tr('nomes.gorrath'),cor:'#5aff8a',cor2:'#e0ffe8',letra:'G',voz:{freq:85,tipo:'sawtooth',formante:260,vol:.16}},
   ardo:{nome:()=>tr('nomes.ardo'),cor:'#e9c77b',cor2:'#fff4d8',letra:'A',voz:{freq:210,tipo:'triangle',vol:.12}}}});
  $('lang').onclick=()=>{Idioma.alternar();mostraPrevia()};
