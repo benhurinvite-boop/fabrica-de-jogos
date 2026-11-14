@@ -39,6 +39,7 @@
   <div class="classe"><button id="ant" aria-label="Classe anterior">‹</button><div><h2 id="cN">Cavaleiro</h2><p id="cD"></p></div><button id="prox" aria-label="Próxima classe">›</button></div>
   <div class="opcs"><button id="oCor"><b data-t="roupa">Roupa</b><span id="oCorT">Original</span></button><button id="oCap"><b data-t="cabeca">Cabeça</b><span id="oCapT">Com</span></button><button id="oMan"><b data-t="capa">Capa</b><span id="oManT">Com</span></button></div>
   <button class="entrar" id="entrar" disabled data-t="entrar">Enter</button>
+  <button class="entrar sec" id="coopBtn" data-t="coop.botao">Play with friends</button><div id="coopP"></div>
   <div id="carga">…</div>
  </div>
 </div>
@@ -67,6 +68,8 @@ import {Musica} from '../../motor/musica.js';
 import {Sons} from '../../motor/sons.js';
 import {criaExercito} from './exercito.js';
 import {BONUS,escolheBencao} from './bencaos.js';
+import {Rede} from '../../motor/rede.js';
+import {criaCoop} from './coop.js';
 Idioma.registrar(TEXTOS);
 
 const $=id=>document.getElementById(id);
@@ -103,7 +106,7 @@ function pegaLuz(cor,int,dist){const l=LUZES.find(x=>!x.userData.uso);if(!l)retu
 function soltaLuz(l){if(!l||!LUZES.includes(l))return;l.intensity=0;l.userData.uso=false}
 // qualidade automática: cai sozinha se o aparelho não aguentar
 let QUAL=TOQUE?1:2,fpsT=0,fpsN=0;
-function aplicaQualidade(q){QUAL=q;const pr=q>=2?DPR:q===1?Math.min(DPR,1.25):.85;renderer.setPixelRatio(pr);composer.setPixelRatio(pr);lua.castShadow=q>=1;if(q===0)tochasLuz.slice(2).forEach(l=>scene.remove(l));redimensiona()}
+function aplicaQualidade(q){QUAL=q;const pr=q>=2?DPR:q===1?Math.min(DPR,1.25):.85;renderer.setPixelRatio(pr);composer.setPixelRatio(pr);lua.castShadow=q>=1;if(q<=1)for(const e of inimigos)e.b.obj.traverse(m=>{if(m.isMesh)m.castShadow=false});if(q===0)tochasLuz.slice(2).forEach(l=>scene.remove(l));redimensiona()}
 
 // ---------- carregamento ----------
 const loader=new GLTFLoader();const cache=new Map();let carregados=0,totalCarga=0;
@@ -262,8 +265,8 @@ function aplicaVisual(b,C){const nomeTex=ESTADO.cor===0?C.tex+'_texture.png':C.t
  $('oCorT').textContent=CORES[ESTADO.cor];$('oCapT').textContent=C.cab.length?(ESTADO.cab?tr('com'):tr('sem')):'—';$('oManT').textContent=C.capa.length?(ESTADO.capa?tr('com'):tr('sem')):'—'}
 
 // ---------- começar ----------
-async function comecar(){ligaSom();Musica.tema('explorar');const C=CLASSES[ESTADO.classe];$('menu').style.display='none';document.body.classList.remove('menu');ESTADO.jogando=true;STATS.t0=performance.now();
- heroi=previa;previa=null;heroi.obj.rotation.y=Math.PI;vidaMax=C.hp;vida=vidaMax;
+async function comecar(n=1){if(ESTADO.jogando)return;ESCALA=1+.6*(n-1);for(const e of inimigos){e.max=e.hp=Math.round(e.T.hp*ESCALA)}Coop.comecou();ligaSom();Musica.tema('explorar');const C=CLASSES[ESTADO.classe];$('menu').style.display='none';document.body.classList.remove('menu');ESTADO.jogando=true;STATS.t0=performance.now();
+ heroi=previa;previa=null;heroi.obj.rotation.y=Math.PI;if(Rede.ativo){const ids=[Rede.id,...Rede.pares].sort();heroi.obj.position.x+=(ids.indexOf(Rede.id)-1.5)*1.6}vidaMax=C.hp;vida=vidaMax;
  $('qN').textContent=tr('viajante');$('qC').textContent=tr('nivelN',{c:C.n,n:1});$('n1').textContent=C.s[0].n;$('n2').textContent=C.s[1].n;$('n3').textContent=C.s[2].n;
  toca(heroi,'Idle_A');hud();objetivo(tr('obj.explore'));criaPip();
  emCena=true;focoCena=heroi.obj.position.clone();await new Promise(r=>setTimeout(r,500));
@@ -274,9 +277,11 @@ const TIPOS={k:{arq:'Skeleton_Minion',arma:['Skeleton_Blade'],hp:60,dano:9,vel:2
  m:{arq:'Skeleton_Mage',arma:['Skeleton_Staff'],hp:45,dano:11,vel:2.2,xp:18,ataque:'Ranged_Magic_Shoot',alc:11,longe:true},w:{arq:'Skeleton_Warrior',arma:['Skeleton_Axe','Skeleton_Shield_Small_A'],hp:95,dano:13,vel:2.4,xp:24,ataque:'Melee_1H_Attack_Chop',alc:1.9},
  G:{arq:'Skeleton_Golem',arma:['Skeleton_Golem_Axe_Large'],hp:1400,dano:26,vel:2.2,xp:300,ataque:'Melee_2H_Attack',alc:3.4,rig:'L',chefe:'gorrath',esc:1.25},
  O:{arq:'Skeleton_Warrior',arma:['Skeleton_Axe','Skeleton_Shield_Small_A'],hp:650,dano:15,vel:2.9,xp:160,ataque:'Melee_1H_Attack_Chop',alc:2.4,chefe:'capitao',escudo:true,esc:1.6}};
+for(const k in TIPOS){TIPOS[k].hp=Math.round(TIPOS[k].hp*1.35);TIPOS[k].dano=Math.round(TIPOS[k].dano*1.3)}TIPOS.O.hp=950;
+let ESCALA=1,idExtra=1000;
 async function criaInimigo(s){const c=s.c;const T=TIPOS[c];const b=await criaBoneco(T.arq,T.rig||'M');await armar(b,T.arma);
  b.obj.position.set(s.x+rand(-.5,.5),-3,s.z+rand(-.5,.5));b.obj.visible=false;scene.add(b.obj);if(T.esc)b.obj.scale.setScalar(T.esc);
- const e={b,T,hp:T.hp,max:T.hp,estado:'dormindo',cdA:rand(.5,1.5),sala:salas.findIndex(r=>s.x/TILE>=r.x0&&s.x/TILE<r.x1&&s.z/TILE>=r.z0&&s.z/TILE<r.z1),golpeou:false,kb:new THREE.Vector3()};
+ const vmax=Math.round(T.hp*ESCALA);const e={id:s.id??(++idExtra),b,T,hp:vmax,max:vmax,estado:'dormindo',cdA:rand(.5,1.5),sala:salas.findIndex(r=>s.x/TILE>=r.x0&&s.x/TILE<r.x1&&s.z/TILE>=r.z0&&s.z/TILE<r.z1),golpeou:false,kb:new THREE.Vector3()};
  inimigos.push(e);if(T.chefe)chefe=e;return e}
 function desperta(e,atraso){setTimeout(()=>{if(e.estado!=='dormindo')return;e.estado='despertando';e.b.obj.visible=true;e.b.obj.position.y=0;
  const nome=e.T.chefe?(e.T.rig==='L'?'Idle_A':'Skeletons_Idle'):'Skeletons_Awaken_Floor';toca(e.b,nome,{vez:!e.T.chefe});explosao('osso',e.b.obj.position.clone().setY(.3),10,3,.5,.6);som('osso');
@@ -305,17 +310,18 @@ function atacar(){const C=CLASSES[ESTADO.classe];const alvo=maisPerto(C.tipo==='
  else{toca(heroi,'Ranged_Bow_Release',{vez:true,vel:1.7});acaoT=.38;cdAtk=.42;setTimeout(()=>{dispara('flecha',danoBase(),alvo)},140)}}
 function rastro(p,cor){explosao('santo',p.clone().setY(1.1),4,2,.35,.18,0)}
 function golpeArea(c,raio,dano,o={}){let n=0;for(const e of inimigos){if(e.hp<=0||e.estado==='dormindo'||e.estado==='despertando')continue;const d=e.b.obj.position.distanceTo(c);if(d<raio+(e.T.chefe?1.4:.4)){fere(e,dano,o);n++}}if(n){pausaT=.05;tremor=Math.max(tremor,.12)}return n}
-function fere(e,dano,o={}){if(e.T.escudo&&heroi){const o2=e.b.obj;const ang=Math.atan2(heroi.obj.position.x-o2.position.x,heroi.obj.position.z-o2.position.z);let df=ang-o2.rotation.y;while(df>Math.PI)df-=Math.PI*2;while(df<-Math.PI)df+=Math.PI*2;
+function fere(e,dano,o={}){if(Coop.cliente&&!o.remoto){const cr=o.crit||Math.random()<.12+BONUS.crit;const dd=Math.round(dano*(cr?2:1)*rand(.9,1.1));numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),dd,cr?'c':'');STATS.dano+=dd;brilha(e.b);explosao('osso',e.b.obj.position.clone().setY(1.2),cr?10:5,3.5,.3,.45);Coop.golpe(e,dd,o);return}
+ const ap=o.de||heroi.obj.position;if(e.T.escudo){const o2=e.b.obj;const ang=Math.atan2(ap.x-o2.position.x,ap.z-o2.position.z);let df=ang-o2.rotation.y;while(df>Math.PI)df-=Math.PI*2;while(df<-Math.PI)df+=Math.PI*2;
  if(e.estado==='atordoado')dano*=1.6;else if(Math.abs(df)<1.15){dano*=.25;if(!e._blq||performance.now()-e._blq>700){e._blq=performance.now();numero(o2.position.clone().setY(4.4),tr('bloqueado'),'b');explosao('santo',o2.position.clone().add(new THREE.Vector3(Math.sin(o2.rotation.y)*1.2,1.4,Math.cos(o2.rotation.y)*1.2)),6,3,.3,.25,0)}}}
  if(e.T.chefe==='capitao'&&dano>8&&(!e._dor||performance.now()-e._dor>1500)){e._dor=performance.now();Sons.aleatorio(['capitao_dor_1','capitao_dor_2'],.9)}
- const crit=o.crit||Math.random()<.12+BONUS.crit;const d=Math.round(dano*(crit?2:1)*rand(.9,1.1));e.hp-=d;numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),d,crit?'c':'');STATS.dano+=d;brilha(e.b);
+ const crit=!o.exato&&(o.crit||Math.random()<.12+BONUS.crit);const d=o.exato?Math.round(dano):Math.round(dano*(crit?2:1)*rand(.9,1.1));e.hp-=d;if(!o.remoto){numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),d,crit?'c':'');STATS.dano+=d}brilha(e.b);
  explosao('osso',e.b.obj.position.clone().setY(1.2),crit?10:5,3.5,.3,.45);
- if(o.kb&&!e.T.chefe){tmp.copy(e.b.obj.position).sub(heroi.obj.position).setY(0).normalize().multiplyScalar(o.kb);e.kb.copy(tmp)}
+ if(o.kb&&!e.T.chefe){tmp.copy(e.b.obj.position).sub(ap).setY(0).normalize().multiplyScalar(o.kb);e.kb.copy(tmp)}
  if(o.gelo){e.gelo=3;e.b.obj.traverse(m=>{if(m.isMesh)m.material.color.setHex(0x9ad8ff)})}
- if(e.hp<=0)mata(e);else if(!e.T.chefe&&e.estado!=='atacando'&&Math.random()<.5){toca(e.b,'Hit_A',{vez:true,vel:1.4});e.estado='ferido';e.feridoT=.3}}
+ if(e.hp<=0)mata(e,o.dono||'local');else if(!e.T.chefe&&e.estado!=='atacando'&&Math.random()<.5){toca(e.b,'Hit_A',{vez:true,vel:1.4});e.estado='ferido';e.feridoT=.3}}
 function dispara(tipo,dano,alvo){const ini=heroi.obj.position.clone().setY(1.4);const r=heroi.obj.rotation.y;let dir=new THREE.Vector3(Math.sin(r),0,Math.cos(r));if(alvo){dir=alvo.b.obj.position.clone().setY(1.3).sub(ini).normalize()}
  const s=particula(tipo==='magia'?'magia':'ouro',ini,new THREE.Vector3(),3,tipo==='magia'?.9:.45);const l=tipo==='magia'?pegaLuz(0x6aa8ff,6,5):null;if(l)l.position.copy(ini);
- projeteis.push({s,l,p:ini,v:dir.multiplyScalar(tipo==='magia'?16:24),dano,tipo,vida:1.2,amigo:true});som(tipo==='magia'?'magia':'flecha')}
+ projeteis.push({s,l,p:ini,v:dir.multiplyScalar(tipo==='magia'?16:24),dano,tipo,vida:1.2,amigo:true});if(Coop.ativo)Rede.enviar('tiro',{t:tipo,x:ini.x,z:ini.z,vx:dir.x,vz:dir.z});som(tipo==='magia'?'magia':'flecha')}
 function habilidade(i){if(!ESTADO.jogando||emCena||morto||cds[i]>0||acaoT>.15)return;const C=CLASSES[ESTADO.classe];const S=C.s[i];cds[i]=S.cd;const o=heroi.obj.position;const dano=danoBase();
  if(S.a==='giro'){toca(heroi,C.tipo==='corpo'&&C.k!=='Knight'?'Melee_2H_Attack_Spin':'Melee_2H_Attack_Spin',{vez:true,vel:1.3});acaoT=.7;som('swing');setTimeout(()=>som('swing'),200);
   for(let k=0;k<3;k++)setTimeout(()=>{golpeArea(o,3.4,dano*1.1,{kb:6});const p=o.clone().setY(1);for(let j=0;j<8;j++){const a=j/8*Math.PI*2+k;particula('santo',p.clone().add(new THREE.Vector3(Math.cos(a)*2.6,0,Math.sin(a)*2.6)),new THREE.Vector3(-Math.sin(a)*6,0,Math.cos(a)*6),.25,.6)}},120+k*160)}
@@ -340,12 +346,19 @@ function esquivar(hab=false,teleporte=false){if(!ESTADO.jogando||emCena||morto)r
 function bebe(){if(!ESTADO.jogando||emCena||morto)return;if(pocoes<=0){toast(tr('semPocoes'),'ruim');return}if(vida>=vidaMax){toast(tr('vidaCheia'));return}pocoes--;cura(vidaMax*.5);explosao('sangue',heroi.obj.position.clone().setY(1),16,2,.5,.6,3);hud()}
 function cura(v){const a=vida;vida=Math.min(vidaMax,vida+v);numero(heroi.obj.position.clone().setY(2.8),'+'+Math.round(vida-a),'v');hud()}
 function feriHeroi(d){if(inv>0||morto)return;d=Math.round(d*rand(.9,1.1));vida-=d;inv=.45;numero(heroi.obj.position.clone().setY(2.8),d,'r');brilha(heroi,0xff2010,.12);som('dor');tremor=Math.max(tremor,.18);
- if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');if(chefe&&chefe.hp>0&&chefe.T.chefe==='capitao'&&chefe.estado!=='dormindo')Sons.tocar('capitao_risada');setTimeout(()=>fim(false),1800)}hud()}
-function mata(e){e.estado='morto';e.hp=0;STATS.abates++;const p=e.b.obj.position.clone();toca(e.b,e.T.rig==='L'?'Death_A':'Skeletons_Death',{vez:true});som('osso');explosao('osso',p.clone().setY(1),16,4,.45,.6);
- ganhaXP(e.T.xp);if(BONUS.sifao&&!morto)cura(vidaMax*BONUS.sifao);if(!e.T.chefe){if(!DICAS.ex&&Exercito.ALIADOS.length<Exercito.max()){DICAS.ex=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.exercito')),900)}Exercito.ergue(e)}const n=e.T.chefe?30:Math.floor(rand(2,6));for(let i=0;i<n;i++)setTimeout(()=>moeda(p),i*30);
- if(e.T.chefe){if(e.T.chefe==='capitao')Sons.tocar('capitao_morte');chefeMorreu(e);Musica.jingle('vitoria');setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
+ if(vida<=0&&Coop.ativo&&Coop.n>1){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});toast(tr('coop.caido'),'ruim')}
+ else if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');if(chefe&&chefe.hp>0&&chefe.T.chefe==='capitao'&&chefe.estado!=='dormindo')Sons.tocar('capitao_risada');setTimeout(()=>fim(false),1800)}hud()}
+function mata(e,dono='local'){if(e.estado==='morto')return;e.estado='morto';e.hp=0;STATS.abates++;const meu=dono==='local'||dono===Coop.meuId;if(!Coop.cliente)Coop.evento('morre',{i:e.id,dono:dono==='local'?Coop.meuId:dono});const p=e.b.obj.position.clone();toca(e.b,e.T.rig==='L'?'Death_A':'Skeletons_Death',{vez:true});som('osso');explosao('osso',p.clone().setY(1),16,4,.45,.6);
+ ganhaXP(e.T.xp);if(BONUS.sifao&&!morto&&meu)cura(vidaMax*BONUS.sifao);if(!e.T.chefe&&meu&&!DICAS.ex){DICAS.ex=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.exercito')),900)}if(!e.T.chefe&&!Coop.cliente)Exercito.ergue(e,dono==='local'||dono===Coop.meuId?'local':dono);const n=e.T.chefe?30:Math.floor(rand(2,6));for(let i=0;i<n;i++)setTimeout(()=>moeda(p),i*30);
+ if(e.T.chefe){if(e.T.chefe==='capitao')Sons.tocar('capitao_morte');chefeMorreu(e);Musica.jingle('vitoria');revive();setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
  setTimeout(()=>{const o=e.b.obj;const t0=performance.now();const af=()=>{const k=(performance.now()-t0)/1200;o.position.y=-k*1.6;if(k<1)requestAnimationFrame(af);else{scene.remove(o)}};af()},e.T.chefe?6000:2200);
- const sala=salas[e.sala];if(sala&&!sala.feita&&inimigos.filter(x=>x.sala===e.sala&&x.hp>0).length===0){sala.feita=true;if(!sala.chefe){banner(tr('salaLimpa'),'',1400);som('lend');Musica.tema('explorar');setTimeout(()=>oferecerBencao().then(()=>{abrePortas(sala);objetivo(tr('obj.siga'));Dialogo.dica('pip',tr('dicas.salaLimpa'))}),1500)}}else atualizaObjetivo()}
+ if(Coop.cliente)return;const sala=salas[e.sala];if(sala&&!sala.feita&&inimigos.filter(x=>x.sala===e.sala&&x.hp>0).length===0){Coop.evento('limpa',{i:e.sala});salaLimpa(e.sala)}else atualizaObjetivo()}
+function salaLimpa(i){const sala=salas[i];if(!sala||sala.feita)return;sala.feita=true;if(sala.chefe)return;revive();banner(tr('salaLimpa'),'',1400);som('lend');Musica.tema('explorar');setTimeout(()=>oferecerBencao().then(()=>{abrePortas(sala);objetivo(tr('obj.siga'));Dialogo.dica('pip',tr('dicas.salaLimpa'))}),1500)}
+function ativaSala(i){const s=salas[i];if(s.ativa)return;s.ativa=true;Coop.evento('sala',{i});
+ const h=heroi.obj.position,hx=h.x/TILE,hz=h.z/TILE;if(!(hx>=s.x0&&hx<s.x1&&hz>=s.z0&&hz<s.z1)){h.set((s.x0+s.x1)/2*TILE,0,(s.z0+s.z1)/2*TILE+4);explosao('magia',h.clone().setY(1),20,3,.5,.5)}
+ trancaPortas(s);if(s.chefe){cenaCapitao(s,i)}else{if(!Coop.cliente){let k=0;for(const e of inimigos)if(e.sala===i)desperta(e,200+(k++)*180)}objetivo(tr('obj.derrote'));toast(tr('emboscada'),'ruim');Musica.tema('combate');if(!DICAS.emb){DICAS.emb=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.emboscada')),700)}}tremor=.3}
+function revive(){if(!morto||!ESTADO.jogando||!heroi)return;morto=false;vida=Math.round(vidaMax*.5);toca(heroi,'Idle_A');explosao('santo',heroi.obj.position.clone().setY(1),30,4,.6,.8,2);som('lend');hud()}
+function heroiPerto(pos){let m=null,md=Infinity;for(const x of Coop.herois()){const d=pos.distanceTo(x.pos);if(d<md){md=d;m=x}}return m}
 function abrePortas(s){for(const [x,z] of s.portas){const p=PORTAS.get(pk(x,z));if(p&&!salas.some(o=>o!==s&&o.ativa&&!o.feita&&o.portas.some(([a,b])=>a===x&&b===z))){p.trancada=false;p.alvo=-3.7}}som('osso')}
 function trancaPortas(s){for(const [x,z] of s.portas){const p=PORTAS.get(pk(x,z));if(p){p.trancada=true;p.alvo=0}}som('boom');tremor=.25}
 function ganhaXP(v){xp+=v;const precisa=100*nivel;if(xp>=precisa){xp-=precisa;nivel++;vidaMax+=15;vida=vidaMax;banner(tr('nivelUp',{n:nivel}),tr('nivelUpP'),1800);explosao('ouro',heroi.obj.position.clone().setY(1),40,4,.6,1,2);som('lend');$('qC').textContent=tr('nivelN',{c:CLASSES[ESTADO.classe].n,n:nivel})}hud()}
@@ -396,13 +409,37 @@ $('denovo').onclick=()=>Plataforma.intervalo().then(()=>location.reload());
 
 
 // ---------- estado extra do Andar 1 ----------
-let emCena=false,focoCena=null;const DICAS={};const STATS={t0:0,abates:0,dano:0};
+let emCena=false,focoCena=null,bencaoAberta=false;const DICAS={};const STATS={t0:0,abates:0,dano:0};
 // ---------- Exército de Ossos, bênçãos, som ----------
-const Exercito=criaExercito({THREE,scene,criaBoneco,armar,toca,move,explosao,particula,numero,som,inimigos,fere,projeteis,vira2,rand,tr,BONUS,heroi:()=>heroi,pip:()=>PIP?PIP.pos:null,aoMudar:(n,m)=>hudExer(n,m)});
-function hudExer(n=Exercito.ALIADOS.length,m=Exercito.max()){$('exer').querySelector('span').textContent=n+'/'+m}
-async function oferecerBencao(){if(morto||!ESTADO.jogando)return;emCena=true;Plataforma.jogoPausa();
+const Exercito=criaExercito({THREE,scene,criaBoneco,armar,toca,move,explosao,particula,numero,som,inimigos,fere,projeteis,vira2,rand,tr,pip:()=>PIP?PIP.pos:null,aoMudar:()=>{if(!Coop.cliente)hudExer()},
+ bonusDe:d=>Coop.bonusDe(d),posDe:d=>Coop.posDe(d),herois:()=>Coop.herois()});
+const Coop=criaCoop({THREE,scene,tr,$,BONUS,ESTADO,CLASSES,inimigos,criaBoneco,armar,toca,toast,fere,hudExer:(n,m)=>hudExer(n,m),fim:v=>fim(v),Exercito,
+ heroi:()=>heroi,morto:()=>morto,feriHeroi:d=>feriHeroi(d),visualDe,aoMudarJogadores:()=>atualizaLobby()});
+// ---------- co-op: mensagens e lobby ----------
+Rede.on('inicio',m=>{if(!Rede.host)comecar(m.n)});
+Rede.on('sala',m=>{if(Coop.cliente&&ESTADO.jogando)ativaSala(m.i)});
+Rede.on('limpa',m=>{if(Coop.cliente)salaLimpa(m.i)});
+Rede.on('morre',m=>{if(!Coop.cliente)return;const e=inimigos.find(q=>q.id===m.i);if(e)mata(e,m.dono)});
+Rede.on('dano',m=>{if(ESTADO.jogando)feriHeroi(m.d)});
+Rede.on('fim',m=>fim(m.v));
+Rede.on('saida',()=>{if(Rede.host&&ESTADO.jogando){Coop.evento('fim',{v:true});fim(true)}});
+Rede.on('spawn',m=>{if(Coop.cliente)criaInimigo({c:m.c,x:m.x,z:m.z,id:m.id}).then(n=>{n.sala=-1;desperta(n,0)})});
+Rede.on('proj',m=>{if(!Coop.cliente||!ESTADO.jogando)return;const ini=new THREE.Vector3(m.x,1.5,m.z);const s=particula('roxo',ini,new THREE.Vector3(),3,.8);projeteis.push({s,l:null,p:ini,v:new THREE.Vector3(m.vx,0,m.vz),dano:m.d,vida:2.2,amigo:false})});
+Rede.on('tiro',m=>{if(!ESTADO.jogando)return;const ini=new THREE.Vector3(m.x,1.4,m.z);const s=particula(m.t==='magia'?'magia':'ouro',ini,new THREE.Vector3(),3,m.t==='magia'?.9:.45);projeteis.push({s,l:null,p:ini,v:new THREE.Vector3(m.vx,0,m.vz),dano:0,tipo:m.t,vida:1.2,amigo:true,visual:true})});
+function montaLobby(){$('coopBtn').onclick=()=>{$('coopP').classList.toggle('on');desenhaLobby()}}
+function desenhaLobby(msg){const P=$('coopP');
+ if(!Rede.ativo){P.innerHTML=`<p>${tr('coop.explica')}</p><button id="cCriar" class="cb">${tr('coop.criar')}</button><div class="cl"><input id="cCod" maxlength="10" placeholder="${tr('coop.placeholder')}" autocomplete="off" autocapitalize="off" spellcheck="false"><button id="cEntrar" class="cb">${tr('coop.entrar')}</button></div>${msg?`<p class="ce">${msg}</p>`:''}`;
+  $('cCriar').onclick=async()=>{P.innerHTML=`<p>${tr('coop.conectando')}</p>`;try{await Rede.criar();desenhaLobby()}catch(e){desenhaLobby(tr('coop.erro',{m:e.message}))}};
+  $('cEntrar').onclick=async()=>{const c=$('cCod').value.trim();if(!c)return;P.innerHTML=`<p>${tr('coop.conectando')}</p>`;try{await Rede.entrar(c);desenhaLobby()}catch(e){desenhaLobby(tr('coop.erro',{m:e.message}))}};return}
+ const n=1+Rede.pares.length;
+ P.innerHTML=`<p class="cc">${tr('coop.codigo')}</p><div class="cod">${Rede.codigo}</div><p>${tr('coop.jogadores',{n})}</p><p class="cs">${tr(Rede.host?'coop.compartilhe':'coop.aguardando')}</p>`;
+ $('entrar').textContent=Rede.host?tr('coop.comecar',{n}):tr('coop.esperando');$('entrar').disabled=!Rede.host}
+function atualizaLobby(){if(!ESTADO.jogando&&$('coopP').classList.contains('on'))desenhaLobby()}
+function visualDe(b,ci,cor,cab,capa){const g={cor:ESTADO.cor,cab:ESTADO.cab,capa:ESTADO.capa};Object.assign(ESTADO,{cor,cab,capa});aplicaVisual(b,CLASSES[ci]||CLASSES[0]);Object.assign(ESTADO,g);if(previa)aplicaVisual(previa,CLASSES[ESTADO.classe])}
+function hudExer(n=Exercito.doDono('local'),m=Exercito.max('local')){$('exer').querySelector('span').textContent=n+'/'+m}
+async function oferecerBencao(){if(morto||!ESTADO.jogando)return;emCena=true;bencaoAberta=true;Plataforma.jogoPausa();
  const x=await escolheBencao(tr,{aumentaVida:f=>{vidaMax=Math.round(vidaMax*(1+f));vida=vidaMax;hud()},ganhaPocoes:n=>{pocoes+=n;hud()}});
- emCena=false;Plataforma.jogoInicio();toast('✦ '+tr('bencaos.'+x.k+'.n'),'lend');som('lend');hudExer()}
+ emCena=false;bencaoAberta=false;Plataforma.jogoInicio();toast('✦ '+tr('bencaos.'+x.k+'.n'),'lend');som('lend');hudExer()}
 let MUDO=!!Plataforma.ler('mudo',false);
 function aplicaMudo(){$('mudo').textContent=MUDO?'🔇':'🔊';if(AC){try{MUDO?AC.suspend():AC.resume()}catch(e){}}}
 function ligaSom(){const a=ac();if(!a)return;Musica.iniciar(a);Sons.iniciar(a);if(MUDO)aplicaMudo()}
@@ -425,7 +462,7 @@ async function cenaCapitao(s,i){Musica.tema('chefe');const cap=inimigos.find(e=>
  await Dialogo.cena(tr('falas.capitao').map(([quem,texto])=>({quem,texto})),{aoLinha:l=>{focoCena=(l.quem==='capitao'&&cap?cap.b.obj.position:heroi.obj.position).clone()}});
  emCena=false;focoCena=null;Plataforma.jogoInicio();let k=0;for(const e of inimigos)if(e.sala===i&&!e.T.chefe)desperta(e,300+(k++)*250);if(cap){cap.cdInv=2.5;banner(tr('chefes.capitao'),tr('chefes.capitaoS'),2000)}}
 let faixaGeo=null;
-function atualizaCapitao(dt,e){const o=e.b.obj;const h=heroi.obj.position;const d=o.position.distanceTo(h);
+function atualizaCapitao(dt,e){const o=e.b.obj;const HH=heroiPerto(o.position);if(!HH){toca(e.b,'Skeletons_Idle');return}const h=HH.pos;const d=o.position.distanceTo(h);
  if(!e.mostrou){e.mostrou=true;$('chefe').style.display='block';$('chefeN').textContent=tr('chefes.capitao')+' · '+tr('chefes.capitaoS')}
  $('chefe').querySelector('i').style.transform=`scaleX(${clamp(e.hp/e.max,0,1)})`;
  const furia=e.hp<e.max*.5;e.cdInv=(e.cdInv??3)-dt;
@@ -433,18 +470,18 @@ function atualizaCapitao(dt,e){const o=e.b.obj;const h=heroi.obj.position;const 
  if(e.estado==='preparando'){e.prT-=dt;e.faixa.material.opacity=.25+.3*Math.abs(Math.sin(e.prT*16));if(e.prT<=0){e.estado='investindo';e.invT=1.1;e.acertou=false;toca(e.b,'Running_A',{vel:1.8});Sons.tocar('capitao_investida')||som('urro')}return}
  if(e.estado==='investindo'){e.invT-=dt;const passo=e.dir.clone().multiplyScalar((furia?19:16)*dt);const ax=o.position.x,az=o.position.z;move(o.position,passo,1.1);const andou=Math.hypot(o.position.x-ax,o.position.z-az);
   if(Math.random()<.6)particula('osso',o.position.clone().setY(.2),new THREE.Vector3(rand(-1,1),1.5,rand(-1,1)),.4,.5,0);
-  if(!e.acertou&&o.position.distanceTo(h)<2.2){e.acertou=true;feriHeroi(e.T.dano*1.6);heroiEmpurra(e.dir,7)}
+  if(!e.acertou&&o.position.distanceTo(h)<2.2){e.acertou=true;HH.ferir(e.T.dano*1.6);if(HH.id==='local')heroiEmpurra(e.dir,7)}
   if(andou<passo.length()*.4){// bateu na parede: fica tonto
    e.estado='atordoado';e.atT=furia?1.7:2.2;scene.remove(e.faixa);e.faixa=null;tremor=.7;pausaT=.06;som('boom');explosao('osso',o.position.clone().add(e.dir.clone().multiplyScalar(1.5)).setY(1.5),30,6,.6,.7);toast(tr('atordoado'));Sons.tocar('capitao_tonto');toca(e.b,'Hit_A',{vez:true,vel:.6});return}
   if(e.invT<=0){e.estado='caçando';scene.remove(e.faixa);e.faixa=null;e.cdA=.8}return}
- if(e.estado==='atacando'){e.atkT-=dt;if(!e.golpeou&&e.atkT<.45){e.golpeou=true;const c=o.position.clone().add(new THREE.Vector3(Math.sin(o.rotation.y)*2,0,Math.cos(o.rotation.y)*2));if(c.distanceTo(h)<2.4)feriHeroi(e.T.dano);som('swing')}if(e.atkT<=0){e.estado='caçando';e.cdA=furia?.9:1.4}return}
+ if(e.estado==='atacando'){e.atkT-=dt;if(!e.golpeou&&e.atkT<.45){e.golpeou=true;const c=o.position.clone().add(new THREE.Vector3(Math.sin(o.rotation.y)*2,0,Math.cos(o.rotation.y)*2));if(c.distanceTo(h)<2.4)HH.ferir(e.T.dano);som('swing')}if(e.atkT<=0){e.estado='caçando';e.cdA=furia?.9:1.4}return}
  e.cdA=(e.cdA??1)-dt;vira2(o,h);
  if(e.cdInv<=0&&d>4&&d<20){e.estado='preparando';e.prT=furia?.6:.85;e.cdInv=furia?4:6;e.dir=h.clone().sub(o.position).setY(0).normalize();o.rotation.y=Math.atan2(e.dir.x,e.dir.z);
   if(!faixaGeo){faixaGeo=new THREE.PlaneGeometry(2.4,16);faixaGeo.translate(0,8,0)}const m=new THREE.Mesh(faixaGeo,new THREE.MeshBasicMaterial({color:0xff3020,transparent:true,opacity:.3,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
   m.rotation.x=-Math.PI/2;m.rotation.z=o.rotation.y+Math.PI;m.position.set(o.position.x,.07,o.position.z);scene.add(m);e.faixa=m;toca(e.b,'Skeletons_Idle');if(!DICAS.inv){DICAS.inv=1;Dialogo.dica('pip',tr('dicas.investida'))}return}
  if(d<=e.T.alc&&e.cdA<=0){e.estado='atacando';e.golpeou=false;e.atkT=.9;toca(e.b,e.T.ataque,{vez:true,vel:1.1});return}
  if(d>e.T.alc*.85){toca(e.b,'Skeletons_Walking',{vel:1.2});tmp.copy(h).sub(o.position).setY(0).normalize().multiplyScalar(e.T.vel*(furia?1.25:1)*dt);move(o.position,tmp,1.1)}else toca(e.b,'Skeletons_Idle');
- if(!e.chamou&&furia){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.capitao')}),'ruim');Sons.tocar('capitao_risada')||som('urro');for(let j=0;j<2;j++){const a=j*Math.PI+.8;criaInimigo({c:'k',x:o.position.x+Math.cos(a)*4,z:o.position.z+Math.sin(a)*4}).then(n=>{n.sala=-1;desperta(n,200+j*300)})}}}
+ if(!e.chamou&&furia){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.capitao')}),'ruim');Sons.tocar('capitao_risada')||som('urro');for(let j=0;j<2;j++){const a=j*Math.PI+.8;criaInimigo({c:'k',x:o.position.x+Math.cos(a)*4,z:o.position.z+Math.sin(a)*4}).then(n=>{n.sala=-1;desperta(n,200+j*300);Coop.evento('spawn',{id:n.id,c:'k',x:n.b.obj.position.x,z:n.b.obj.position.z})})}}}
 function heroiEmpurra(dir,f){const p=heroi.obj.position;for(let k=0;k<8;k++)move(p,dir.clone().multiplyScalar(f/8*.35))}
 
 // ---------- saída para o Andar 2 ----------
@@ -465,26 +502,26 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
    if(ctrl.atk&&cdAtk<=0&&!esquiva)atacar()}
   if(emCena)toca(heroi,'Idle_A');
   // salas despertam (e trancam) quando você entra
-  const hx=heroi.obj.position.x/TILE,hz=heroi.obj.position.z/TILE;if(!emCena)salas.forEach((s,i)=>{if(!s.ativa&&hx>=s.x0+.5&&hx<s.x1-.5&&hz>=s.z0+.5&&hz<s.z1-.5){s.ativa=true;trancaPortas(s);
-   if(s.chefe){cenaCapitao(s,i)}else{let k=0;for(const e of inimigos)if(e.sala===i)desperta(e,200+(k++)*180);objetivo(tr('obj.derrote'));toast(tr('emboscada'),'ruim');Musica.tema('combate');if(!DICAS.emb){DICAS.emb=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.emboscada')),700)}}tremor=.3}});
+  if(!emCena&&Coop.host){const ps=Coop.posicoes();salas.forEach((s,i)=>{if(!s.ativa&&ps.some(p=>{const hx=p.x/TILE,hz=p.z/TILE;return hx>=s.x0+.5&&hx<s.x1-.5&&hz>=s.z0+.5&&hz<s.z1-.5}))ativaSala(i)});
+   if(Coop.ativo&&Coop.n>1&&morto&&ps.length===0){Coop.evento('fim',{v:false});fim(false)}}
   // saída
-  if(SAIDA.ativa&&heroi.obj.position.distanceTo(SAIDA.pos)<1.6&&!morto){SAIDA.ativa=false;explosao('ouro',SAIDA.pos.clone().setY(.5),40,4,.6,1,2);som('lend');setTimeout(()=>fim(true),600)}}
+  if(SAIDA.ativa&&heroi.obj.position.distanceTo(SAIDA.pos)<1.6&&!morto){SAIDA.ativa=false;explosao('ouro',SAIDA.pos.clone().setY(.5),40,4,.6,1,2);som('lend');if(Coop.cliente)Rede.enviar('saida',{});else{Coop.evento('fim',{v:true});setTimeout(()=>fim(true),600)}}}
+ Coop.atualiza(dt);
  // grades
  for(const p of PORTAS.values()){p.gr.position.y+=(p.alvo-p.gr.position.y)*Math.min(1,dt*7)}
  if(PIP)atualizaPip(dt,t);
  Exercito.atualiza(dt,emCena);
  if(SAIDA.feixe){SAIDA.feixe.o.material.opacity=.55+.25*Math.sin(t*3);const [sx,sy,vis]=tela(SAIDA.pos.clone().setY(1.2));SAIDA.rot.style.left=sx+'px';SAIDA.rot.style.top=sy+'px';SAIDA.rot.style.display=vis?'block':'none'}
  // inimigos
- for(const e of inimigos){e.b.mixer.update(dt);if(emCena||e.estado==='dormindo'||e.estado==='morto'||e.estado==='despertando')continue;const o=e.b.obj;
+ for(const e of inimigos){e.b.mixer.update(dt);if(Coop.cliente||(emCena&&!(bencaoAberta&&Coop.ativo))||e.estado==='dormindo'||e.estado==='morto'||e.estado==='despertando')continue;const o=e.b.obj;
   if(e.kb.lengthSq()>.01){move(o.position,tmp.copy(e.kb).multiplyScalar(dt));e.kb.multiplyScalar(Math.pow(.02,dt))}
   if(e.gelo>0){e.gelo-=dt;if(e.gelo<=0)o.traverse(m=>{if(m.isMesh)m.material.color.setHex(0xffffff)});else continue}
   if(e.T.chefe==='capitao'){atualizaCapitao(dt,e);continue}if(e.T.chefe){atualizaChefe(dt,e);continue}
   if(e.estado==='ferido'){e.feridoT-=dt;if(e.feridoT<=0)e.estado='caçando';continue}
-  const AL=Exercito.alvoPara(o.position);const h=AL.pos;const d=o.position.distanceTo(h);
-  if(e.estado==='atacando'){e.atkT-=dt;if(!e.golpeou&&e.atkT<.35){e.golpeou=true;if(e.T.longe){const ini=o.position.clone().setY(1.5);const dir=h.clone().setY(1.2).sub(ini).normalize();const s=particula('roxo',ini,new THREE.Vector3(),3,.8);const l=pegaLuz(0xaa5aff,5,4);projeteis.push({s,l,p:ini,v:dir.multiplyScalar(9),dano:e.T.dano,vida:2.2,amigo:false});som('magia')}else if(d<e.T.alc+.6){if(AL.aliado)Exercito.ferir(AL.aliado,e.T.dano);else feriHeroi(e.T.dano)}}
+  const AL=Exercito.alvoPara(o.position);if(!AL){toca(e.b,'Skeletons_Idle');continue}const h=AL.pos;const d=o.position.distanceTo(h);
+  if(e.estado==='atacando'){e.atkT-=dt;if(!e.golpeou&&e.atkT<.35){e.golpeou=true;if(e.T.longe){const ini=o.position.clone().setY(1.5);const dir=h.clone().setY(1.2).sub(ini).normalize();const s=particula('roxo',ini,new THREE.Vector3(),3,.8);const l=pegaLuz(0xaa5aff,5,4);projeteis.push({s,l,p:ini,v:dir.multiplyScalar(9),dano:e.T.dano,vida:2.2,amigo:false});Coop.evento('proj',{x:ini.x,z:ini.z,vx:dir.x,vz:dir.z,d:e.T.dano});som('magia')}else if(d<e.T.alc+.6){if(AL.aliado)Exercito.ferir(AL.aliado,e.T.dano);else AL.heroi.ferir(e.T.dano)}}
    if(e.atkT<=0)e.estado='caçando';continue}
   e.cdA-=dt;vira2(o,h);
-  if(morto){toca(e.b,'Skeletons_Idle');continue}
   if(d<=e.T.alc&&e.cdA<=0){e.estado='atacando';e.golpeou=false;e.atkT=.85;e.cdA=rand(1.2,1.9);toca(e.b,e.T.ataque,{vez:true,vel:1.2});continue}
   if(d>e.T.alc*(e.T.longe?.8:.85)){toca(e.b,e.T.vel>3?'Running_A':'Skeletons_Walking',{vel:e.T.vel>3?1:1.3});tmp.copy(h).sub(o.position).setY(0).normalize();
    // separa um pouco dos vizinhos
@@ -493,7 +530,7 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
  // projéteis
  for(let i=projeteis.length-1;i>=0;i--){const p=projeteis[i];p.vida-=dt;p.p.addScaledVector(p.v,dt);p.s.position.copy(p.p);if(p.l)p.l.position.copy(p.p);if(Math.random()<.6)particula(p.amigo?(p.tipo==='magia'?'magia':'ouro'):'roxo',p.p,new THREE.Vector3(rand(-.5,.5),rand(-.5,.5),rand(-.5,.5)),.25,p.tipo==='flecha'?.2:.4);
   let acabou=p.vida<=0||!ehChao(Math.floor(p.p.x/TILE),Math.floor(p.p.z/TILE));
-  if(p.amigo){for(const e of inimigos){if(e.hp<=0||e.estado==='dormindo'||e.estado==='despertando')continue;if(e.b.obj.position.clone().setY(1.3).distanceTo(p.p)<(e.T.chefe?2:1)){fere(e,p.dano,{kb:2});acabou=true;explosao(p.tipo==='magia'?'magia':'ouro',p.p,10,3,.4,.35);if(p.tipo==='magia'){som('hit')}break}}}
+  if(p.amigo&&!p.visual){for(const e of inimigos){if(e.hp<=0||e.estado==='dormindo'||e.estado==='despertando')continue;if(e.b.obj.position.clone().setY(1.3).distanceTo(p.p)<(e.T.chefe?2:1)){fere(e,p.dano,{kb:2});acabou=true;explosao(p.tipo==='magia'?'magia':'ouro',p.p,10,3,.4,.35);if(p.tipo==='magia'){som('hit')}break}}}
   else if(Exercito.atingidoPor(p.p)){Exercito.ferir(Exercito.atingidoPor(p.p),p.dano);acabou=true}else if(heroi.obj.position.clone().setY(1.2).distanceTo(p.p)<.9){feriHeroi(p.dano);acabou=true;explosao('roxo',p.p,10,3,.4,.35)}
   if(acabou){scene.remove(p.s);soltaLuz(p.l);projeteis.splice(i,1)}}
  // partículas
@@ -520,7 +557,9 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
   tmp.set(camAlvo.x,dd*.8,camAlvo.z+dd*.68);if(tremor>0){tremor-=dt;tmp.x+=rand(-1,1)*tremor*.5;tmp.y+=rand(-1,1)*tremor*.5}camera.position.copy(tmp);camera.lookAt(camAlvo.x,0,camAlvo.z-.5);
   luzHeroi.position.set(h.x,7.5,h.z+3.5);luzHeroi.intensity=70;lua.position.set(h.x-8,20,h.z+6);lua.target.position.copy(h)}
  if(ESTADO.jogando&&t-tPrev>.1){tPrev=t;hudCds()}
+ renderer.shadowMap.autoUpdate=QUAL>=2;if(QUAL<2&&(++quadro&1))renderer.shadowMap.needsUpdate=true;
  if(QUAL>=2)composer.render();else renderer.render(scene,camera)}
+let quadro=0;
 
 // ---------- início ----------
 (async function(){try{
@@ -529,7 +568,7 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
  Plataforma.aoAnuncio(()=>{try{AC&&AC.suspend()}catch(e){}},()=>{try{AC&&!MUDO&&AC.resume()}catch(e){}});
  await carregaAnimacoes();await montaCripta();
  await Promise.all([...CLASSES.map(c=>carrega(c.k+'.glb')),...['Skeleton_Minion','Skeleton_Rogue','Skeleton_Mage','Skeleton_Warrior','Skeleton_Golem'].map(a=>carrega(a+'.glb'))]);
- await Promise.all(SPAWNS.map(s=>criaInimigo(s)));
+ SPAWNS.forEach((s,i)=>s.id=i);await Promise.all(SPAWNS.map(s=>criaInimigo(s)));
  Idioma.aplicar();
  Sons.carregar(M+'vozes/',['capitao_fala_1','capitao_fala_2','capitao_fala_3','capitao_risada','capitao_investida','capitao_dor_1','capitao_dor_2','capitao_tonto','capitao_morte']);
  Dialogo.configurar({audio:ac,clipe:n=>Sons.tocar(n),textos:{get pular(){return tr('pular')},get continuar(){return tr('continuar')}},personagens:{
@@ -545,8 +584,8 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
  await mostraPrevia();renderer.compile(scene,camera);laco();$('carga').textContent='';$('entrar').disabled=false;Plataforma.carregamentoFim();
  $('ant').onclick=()=>{ESTADO.classe=(ESTADO.classe+CLASSES.length-1)%CLASSES.length;ESTADO.cor=0;mostraPrevia()};$('prox').onclick=()=>{ESTADO.classe=(ESTADO.classe+1)%CLASSES.length;ESTADO.cor=0;mostraPrevia()};
  $('oCor').onclick=()=>{ESTADO.cor=(ESTADO.cor+1)%4;aplicaVisual(previa,CLASSES[ESTADO.classe])};$('oCap').onclick=()=>{ESTADO.cab=!ESTADO.cab;aplicaVisual(previa,CLASSES[ESTADO.classe])};$('oMan').onclick=()=>{ESTADO.capa=!ESTADO.capa;aplicaVisual(previa,CLASSES[ESTADO.classe])};
- $('entrar').onclick=comecar;
- window.JOGO={THREE,Exercito,BONUS,qual:()=>QUAL,Musica,oferecerBencao,PORTAS,SAIDA,ativaSaida,fere,itens,cena:()=>emCena,previa:()=>previa,camera,heroi:()=>heroi,inimigos,salas,ESTADO,habilidade,chefe:()=>chefe,ctrl,teclas};
+ $('entrar').onclick=()=>{if(Rede.ativo&&!Rede.host)return;if(Rede.ativo){const n=1+Rede.pares.length;Rede.enviar('inicio',{n});comecar(n)}else comecar(1)};montaLobby();
+ window.JOGO={THREE,Coop,Rede,Exercito,BONUS,qual:()=>QUAL,Musica,oferecerBencao,PORTAS,SAIDA,ativaSaida,fere,itens,cena:()=>emCena,previa:()=>previa,camera,heroi:()=>heroi,inimigos,salas,ESTADO,habilidade,chefe:()=>chefe,ctrl,teclas};
  if(/[?&]auto/.test(location.search))comecar();
 }catch(e){console.error(e);$('carga').textContent=tr('erro')+': '+e.message}})();
 
