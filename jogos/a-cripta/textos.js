@@ -1,6 +1,7 @@
 // Todos os textos de Gorrath's Crypt, em inglês (padrão) e português.
 export const TEXTOS = {
   en: {
+    gire: 'Turn your phone sideways to play',
     titulo: "Gorrath's Crypt", sub: 'Floor 1 · The Catacombs',
     roupa: 'Outfit', cabeca: 'Head', capa: 'Cape', com: 'On', sem: 'Off',
     cores: ['Original', 'Variant A', 'Variant B', 'Variant C'],
@@ -100,6 +101,7 @@ export const TEXTOS = {
   },
 
   pt: {
+    gire: 'Gire o celular para jogar',
     titulo: 'A Cripta de Gorrath', sub: 'Andar 1 · Catacumbas',
     roupa: 'Roupa', cabeca: 'Cabeça', capa: 'Capa', com: 'Com', sem: 'Sem',
     cores: ['Original', 'Variação A', 'Variação B', 'Variação C'],

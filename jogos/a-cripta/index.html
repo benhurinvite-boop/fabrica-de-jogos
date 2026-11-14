@@ -32,6 +32,7 @@
  <button class="bt" id="bPoc" aria-label="Poção"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M9 3h6M10 3v5l-4 7a4 4 0 0 0 4 6h4a4 4 0 0 0 4-6l-4-7V3"/></svg><b id="nPoc">3</b></button>
 </div>
 
+<div id="gire"><div><svg viewBox="0 0 64 64" width="84" height="84" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><rect x="20" y="6" width="24" height="44" rx="4"/><path d="M50 44a18 18 0 0 1-18 14M46 54l4 4 4-4" /></svg><p data-t="gire">Turn your phone sideways to play</p></div></div>
 <div id="menu">
  <button id="lang" data-t="lang">PT</button>
  <header><h1 data-t="titulo">Gorrath's Crypt</h1><p data-t="sub">Floor 1</p></header>
@@ -270,7 +271,7 @@ function aplicaVisual(b,C){const nomeTex=ESTADO.cor===0?C.tex+'_texture.png':C.t
  $('oCorT').textContent=CORES[ESTADO.cor];$('oCapT').textContent=C.cab.length?(ESTADO.cab?tr('com'):tr('sem')):'—';$('oManT').textContent=C.capa.length?(ESTADO.capa?tr('com'):tr('sem')):'—'}
 
 // ---------- começar ----------
-async function comecar(n=1,semente){if(ESTADO.jogando)return;JOGADORES=n;SEMENTE=semente??Math.floor(Math.random()*1e9);if(!Meta.liberada(CLASSES[ESTADO.classe].k)){ESTADO.classe=0;await mostraPrevia()}Coop.comecou();ligaSom();Musica.tema('explorar');const C=CLASSES[ESTADO.classe];$('menu').style.display='none';document.body.classList.remove('menu');ESTADO.jogando=true;STATS.t0=performance.now();
+async function comecar(n=1,semente){if(ESTADO.jogando)return;if(TOQUE&&Plataforma.nome==='nenhuma'){try{document.documentElement.requestFullscreen().then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}}JOGADORES=n;SEMENTE=semente??Math.floor(Math.random()*1e9);if(!Meta.liberada(CLASSES[ESTADO.classe].k)){ESTADO.classe=0;await mostraPrevia()}Coop.comecou();ligaSom();Musica.tema('explorar');const C=CLASSES[ESTADO.classe];$('menu').style.display='none';document.body.classList.remove('menu');ESTADO.jogando=true;STATS.t0=performance.now();
  await novoAndar(SEMENTE,1);
  heroi=previa;previa=null;heroi.obj.rotation.y=Math.PI;posicionaHeroi();vidaMax=C.hp;vida=vidaMax;Meta.aplica({BONUS,multVida:f=>{vidaMax=Math.round(vidaMax*f);vida=vidaMax},ganhaPocoes:k=>{pocoes+=k}});
  $('qN').textContent=tr('viajante');$('qC').textContent=tr('nivelN',{c:C.n,n:1});$('n1').textContent=C.s[0].n;$('n2').textContent=C.s[1].n;$('n3').textContent=C.s[2].n;
@@ -319,7 +320,7 @@ function golpeArea(c,raio,dano,o={}){let n=0;for(const e of inimigos){if(e.hp<=0
 function fere(e,dano,o={}){if(Coop.cliente&&!o.remoto){const cr=o.crit||Math.random()<.12+BONUS.crit;const dd=Math.round(dano*(cr?2:1)*rand(.9,1.1));numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),dd,cr?'c':'');STATS.dano+=dd;brilha(e.b);explosao('osso',e.b.obj.position.clone().setY(1.2),cr?10:5,3.5,.3,.45);Coop.golpe(e,dd,o);return}
  const ap=o.de||heroi.obj.position;if(e.T.escudo){const o2=e.b.obj;const ang=Math.atan2(ap.x-o2.position.x,ap.z-o2.position.z);let df=ang-o2.rotation.y;while(df>Math.PI)df-=Math.PI*2;while(df<-Math.PI)df+=Math.PI*2;
  if(e.estado==='atordoado')dano*=1.6;else if(Math.abs(df)<1.15){dano*=.25;if(!e._blq||performance.now()-e._blq>700){e._blq=performance.now();numero(o2.position.clone().setY(4.4),tr('bloqueado'),'b');explosao('santo',o2.position.clone().add(new THREE.Vector3(Math.sin(o2.rotation.y)*1.2,1.4,Math.cos(o2.rotation.y)*1.2)),6,3,.3,.25,0)}}}
- if(e.T.chefe==='capitao'&&dano>8&&(!e._dor||performance.now()-e._dor>1500)){e._dor=performance.now();Sons.aleatorio(['capitao_dor_1','capitao_dor_2'],.9)}
+ if(e.T.chefe&&dano>8&&(!e._dor||performance.now()-e._dor>1500)){e._dor=performance.now();Sons.aleatorio([e.T.chefe+'_dor_1',e.T.chefe+'_dor_2'],.9)}
  const crit=!o.exato&&(o.crit||Math.random()<.12+BONUS.crit);const d=o.exato?Math.round(dano):Math.round(dano*(crit?2:1)*rand(.9,1.1));e.hp-=d;if(!o.remoto){numero(e.b.obj.position.clone().setY(e.T.chefe?4.2:2.6),d,crit?'c':'');STATS.dano+=d}brilha(e.b);
  explosao('osso',e.b.obj.position.clone().setY(1.2),crit?10:5,3.5,.3,.45);
  if(o.kb&&!e.T.chefe){tmp.copy(e.b.obj.position).sub(ap).setY(0).normalize().multiplyScalar(o.kb);e.kb.copy(tmp)}
@@ -353,10 +354,10 @@ function bebe(){if(!ESTADO.jogando||emCena||morto)return;if(pocoes<=0){toast(tr(
 function cura(v){const a=vida;vida=Math.min(vidaMax,vida+v);numero(heroi.obj.position.clone().setY(2.8),'+'+Math.round(vida-a),'v');hud()}
 function feriHeroi(d){if(inv>0||morto)return;d=Math.round(d*FATOR_DANO*rand(.9,1.1));vida-=d;inv=.45;numero(heroi.obj.position.clone().setY(2.8),d,'r');brilha(heroi,0xff2010,.12);som('dor');tremor=Math.max(tremor,.18);
  if(vida<=0&&Coop.ativo&&Coop.n>1){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});toast(tr('coop.caido'),'ruim')}
- else if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');if(chefe&&chefe.hp>0&&chefe.T.chefe==='capitao'&&chefe.estado!=='dormindo')Sons.tocar('capitao_risada');setTimeout(()=>fim(false),1800)}hud()}
+ else if(vida<=0){vida=0;morto=true;toca(heroi,'Death_A',{vez:true});Musica.jingle('derrota');if(chefe&&chefe.hp>0&&chefe.estado!=='dormindo')Sons.tocar(chefe.T.chefe+'_risada');setTimeout(()=>fim(false),1800)}hud()}
 function mata(e,dono='local'){if(e.estado==='morto')return;e.estado='morto';e.hp=0;STATS.abates++;const meu=dono==='local'||dono===Coop.meuId;if(!Coop.cliente)Coop.evento('morre',{i:e.id,dono:dono==='local'?Coop.meuId:dono});const p=e.b.obj.position.clone();toca(e.b,e.T.rig==='L'?'Death_A':'Skeletons_Death',{vez:true});som('osso');explosao('osso',p.clone().setY(1),16,4,.45,.6);
  ganhaXP(e.T.xp);if(BONUS.sifao&&!morto&&meu)cura(vidaMax*BONUS.sifao);if(!e.T.chefe&&meu&&!DICAS.ex){DICAS.ex=1;setTimeout(()=>Dialogo.dica('pip',tr('dicas.exercito'),3200,'pip_uhuu'),900)}if(!e.T.chefe&&!Coop.cliente)Exercito.ergue(e,dono==='local'||dono===Coop.meuId?'local':dono);const n=e.T.chefe?30:Math.floor(rand(2,6));for(let i=0;i<n;i++)setTimeout(()=>moeda(p),i*30);
- if(e.T.chefe){if(e.T.chefe==='capitao')Sons.tocar('capitao_morte');chefeMorreu(e);Musica.jingle('vitoria');revive();setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
+ if(e.T.chefe){Sons.tocar(e.T.chefe+'_morte');chefeMorreu(e);Musica.jingle('vitoria');revive();setTimeout(()=>{Musica.tema('explorar');oferecerBencao()},3200)}else if(Math.random()<.14){solta(p,Math.random()<.25?'raro':'magico')}else if(Math.random()<.1){pocoes++;toast(tr('maisPocao'));hud()}
  setTimeout(()=>{const o=e.b.obj;const t0=performance.now();const af=()=>{const k=(performance.now()-t0)/1200;o.position.y=-k*1.6;if(k<1)requestAnimationFrame(af);else{scene.remove(o)}};af()},e.T.chefe?6000:2200);
  if(Coop.cliente)return;const sala=salas[e.sala];if(sala&&!sala.feita&&inimigos.filter(x=>x.sala===e.sala&&x.hp>0).length===0){Coop.evento('limpa',{i:e.sala});salaLimpa(e.sala)}else atualizaObjetivo()}
 function salaLimpa(i){const sala=salas[i];if(!sala||sala.feita)return;sala.feita=true;if(sala.chefe)return;revive();banner(tr('salaLimpa'),'',1400);som('lend');Musica.tema('explorar');setTimeout(()=>oferecerBencao().then(()=>{abrePortas(sala);objetivo(tr('obj.siga'));Dialogo.dica('pip',tr('dicas.salaLimpa'),3200,'pip_risada')}),1500)}
@@ -389,11 +390,11 @@ function atualizaChefe(dt,e){const o=e.b.obj;const HH=heroiPerto(o.position);if(
   if(e.atkT<=0){e.estado='caçando';e.cdA=e.hp<e.max*.4?1.1:1.8}return}
  e.cdA-=dt;vira2(o,h);
  if(e.cdA<=0&&d<12&&Math.random()<.5&&!e.slam2){// pancada no chão com aviso
-  e.estado='atacando';e.slam=true;e.slamP=h.clone();e.slamR=4.2;e.atkT=1.5;e.atkHit=.55;e.golpeou=false;toca(e.b,'Melee_2H_Slam',{vez:true,vel:.9});const a=anel(e.slamP,e.slamR);ANEIS.push({...a,t:0,vida:.95});return}
+  e.estado='atacando';e.slam=true;e.slamP=h.clone();e.slamR=4.2;e.atkT=1.5;e.atkHit=.55;e.golpeou=false;toca(e.b,'Melee_2H_Slam',{vez:true,vel:.9});Sons.tocar('gorrath_investida');const a=anel(e.slamP,e.slamR);ANEIS.push({...a,t:0,vida:.95});return}
  if(d<3.4&&e.cdA<=0){e.estado='atacando';e.slam=false;e.atkT=1.1;e.atkHit=.6;e.golpeou=false;toca(e.b,'Melee_2H_Attack',{vez:true,vel:1.1});return}
  if(d>2.8){toca(e.b,'Walking_A');tmp.copy(h).sub(o.position).setY(0).normalize().multiplyScalar(e.T.vel*(e.hp<e.max*.4?1.4:1)*dt);move(o.position,tmp,1.4)}else toca(e.b,'Idle_A');
  // chama ajuda na metade da vida
- if(!e.chamou&&e.hp<e.max*.55){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.gorrath')}),'ruim');som('urro');for(let i=0;i<4;i++){const a=i/4*Math.PI*2;criaInimigo({c:i%2?'k':'r',x:o.position.x+Math.cos(a)*5,z:o.position.z+Math.sin(a)*5}).then(n=>{n.sala=-1;desperta(n,200+i*250);Coop.evento('spawn',{id:n.id,c:i%2?'k':'r',x:n.b.obj.position.x,z:n.b.obj.position.z})})}}}
+ if(!e.chamou&&e.hp<e.max*.55){e.chamou=true;toast(tr('chamaMortos',{b:tr('chefes.gorrath')}),'ruim');Sons.tocar('gorrath_risada')||som('urro');for(let i=0;i<4;i++){const a=i/4*Math.PI*2;criaInimigo({c:i%2?'k':'r',x:o.position.x+Math.cos(a)*5,z:o.position.z+Math.sin(a)*5}).then(n=>{n.sala=-1;desperta(n,200+i*250);Coop.evento('spawn',{id:n.id,c:i%2?'k':'r',x:n.b.obj.position.x,z:n.b.obj.position.z})})}}}
 function golpeAoE(p,r,dano){for(const x of Coop.herois())if(x.pos.distanceTo(p)<r)x.ferir(dano)}
 function vira2(o,h){const alvo=Math.atan2(h.x-o.position.x,h.z-o.position.z);let d=alvo-o.rotation.y;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;o.rotation.y+=d*.15}
 
@@ -515,7 +516,7 @@ function ativaSaida(){if(!SAIDA.pos||SAIDA.feixe)return;SAIDA.feixe=feixe(SAIDA.
 
 // ---------- laço principal ----------
 const relogio=new THREE.Clock();const camAlvo=new THREE.Vector3();let tPrev=0;
-function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let dt=Math.min(.05,dtCru);fpsT+=dtCru;fpsN++;if(fpsT>3){const fps=fpsN/fpsT;if(fps<42&&QUAL>0&&ESTADO.jogando)aplicaQualidade(QUAL-1);fpsT=0;fpsN=0}const t=relogio.elapsedTime;
+function laco(){requestAnimationFrame(laco);if(TOQUE&&innerWidth<innerHeight){relogio.getDelta();return}const dtCru=relogio.getDelta();let dt=Math.min(.05,dtCru);fpsT+=dtCru;fpsN++;if(fpsT>3){const fps=fpsN/fpsT;if(fps<42&&QUAL>0&&ESTADO.jogando)aplicaQualidade(QUAL-1);fpsT=0;fpsN=0}const t=relogio.elapsedTime;
  if(pausaT>0){pausaT-=dt;dt*=.08}
  // herói
  if(heroi&&ESTADO.jogando){cdAtk-=dt;acaoT-=dt;inv-=dt;comboT-=dt;if(comboT<=0)combo=0;for(let i=0;i<4;i++)cds[i]=Math.max(0,cds[i]-dt*BONUS.recarga);
@@ -577,7 +578,7 @@ function laco(){requestAnimationFrame(laco);const dtCru=relogio.getDelta();let d
  tochasLuz.forEach((l,i)=>{const o=ord[i];if(!o){l.intensity=0;return}l.position.copy(o.x.p);l.intensity=(16+Math.sin(t*9+o.x.fase)*2.5+Math.sin(t*23+o.x.fase)*1.5)*clamp(1-(o.d-14)/10,0,1)});
  for(const tc of TOCHAS){tc.fogo.forEach((s,j)=>{const f=t*7+tc.fase+j*2.1;s.position.set(tc.p.x+Math.sin(f)*.06,tc.p.y+.1+((f*.15)%1)*.5,tc.p.z);s.scale.setScalar(.75-((f*.15)%1)*.45+Math.sin(f*3)*.05)})}
  // câmera
- if(previa){previa.mixer.update(dt);previa.obj.rotation.y+=dt*.6;camAlvo.copy(previa.obj.position);const rt=innerWidth<innerHeight;if(camera.fov!==40){camera.fov=40;camera.updateProjectionMatrix()}camera.position.set(camAlvo.x,rt?3.6:3,camAlvo.z+(rt?10.5:7.5));camera.lookAt(camAlvo.x,rt?.5:1.2,camAlvo.z);luzHeroi.position.set(camAlvo.x+1.5,3.4,camAlvo.z+3);luzHeroi.intensity=16}
+ if(previa){previa.mixer.update(dt);previa.obj.rotation.y+=dt*.6;camAlvo.copy(previa.obj.position);const rt=innerWidth<innerHeight;if(camera.fov!==40){camera.fov=40;camera.updateProjectionMatrix()}const ox=!rt&&innerHeight<=540?2.2:0;camera.position.set(camAlvo.x+ox,rt?3.6:3,camAlvo.z+(rt?10.5:7.5));camera.lookAt(camAlvo.x+ox,rt?.5:1.2,camAlvo.z);luzHeroi.position.set(camAlvo.x+1.5,3.4,camAlvo.z+3);luzHeroi.intensity=16}
  else if(heroi){heroi.mixer.update(dt);const h=heroi.obj.position;const retrato=innerWidth<innerHeight;const dist=retrato?30:17;if(Math.abs(camera.fov-(retrato?52:40))>.1){camera.fov=retrato?52:40;camera.updateProjectionMatrix()}const fc=focoCena||h;const dd=focoCena?dist*.62:dist;if(!focoCena&&camAlvo.distanceTo(h)>8)camAlvo.copy(h);else camAlvo.lerp(fc,focoCena?Math.min(1,dt*3.5):.14);
   tmp.set(camAlvo.x,dd*.8,camAlvo.z+dd*.68);if(tremor>0){tremor-=dt;tmp.x+=rand(-1,1)*tremor*.5;tmp.y+=rand(-1,1)*tremor*.5}camera.position.copy(tmp);camera.lookAt(camAlvo.x,0,camAlvo.z-.5);
   luzHeroi.position.set(h.x,7.5,h.z+3.5);luzHeroi.intensity=70;lua.position.set(h.x-8,20,h.z+6);lua.target.position.copy(h)}
@@ -595,11 +596,11 @@ let quadro=0;
  await Promise.all([...CLASSES.map(c=>carrega(c.k+'.glb')),...['Skeleton_Minion','Skeleton_Rogue','Skeleton_Mage','Skeleton_Warrior','Skeleton_Golem'].map(a=>carrega(a+'.glb'))]);
  SPAWNS.forEach((s,i)=>s.id=i);await Promise.all(SPAWNS.map(s=>criaInimigo(s)));
  Idioma.aplicar();
- Sons.carregar(M+'vozes/',['pip_fala_1','pip_fala_2','pip_fala_3','pip_fala_4','pip_fala_5','pip_fala_6','pip_risada','pip_uhuu','pip_opa','capitao_fala_1','capitao_fala_2','capitao_fala_3','capitao_risada','capitao_investida','capitao_dor_1','capitao_dor_2','capitao_tonto','capitao_morte']);
+ Sons.carregar(M+'vozes/',['pip_fala_1','pip_fala_2','pip_fala_3','pip_fala_4','pip_fala_5','pip_fala_6','pip_risada','pip_uhuu','pip_opa','capitao_fala_1','capitao_fala_2','capitao_fala_3','capitao_risada','capitao_investida','capitao_dor_1','capitao_dor_2','capitao_tonto','capitao_morte','gorrath_fala_1','gorrath_fala_2','gorrath_fala_3','gorrath_risada','gorrath_investida','gorrath_dor_1','gorrath_dor_2','gorrath_morte']);
  Dialogo.configurar({audio:ac,clipe:n=>Sons.tocar(n),textos:{get pular(){return tr('pular')},get continuar(){return tr('continuar')}},personagens:{
   pip:{nome:()=>tr('nomes.pip'),cor:'#5ab8ff',cor2:'#e8f8ff',letra:'P',voz:{freq:620,tipo:'triangle',vol:.1},clipes:['pip_fala_1','pip_fala_2','pip_fala_3','pip_fala_4','pip_fala_5','pip_fala_6']},
   capitao:{nome:()=>tr('nomes.capitao'),cor:'#d8c8a0',cor2:'#fff8e0',letra:'C',voz:{freq:150,tipo:'sawtooth',formante:420,vol:.13},clipes:['capitao_fala_1','capitao_fala_2','capitao_fala_3']},
-  gorrath:{nome:()=>tr('nomes.gorrath'),cor:'#5aff8a',cor2:'#e0ffe8',letra:'G',voz:{freq:85,tipo:'sawtooth',formante:260,vol:.16}},
+  gorrath:{nome:()=>tr('nomes.gorrath'),cor:'#5aff8a',cor2:'#e0ffe8',letra:'G',voz:{freq:85,tipo:'sawtooth',formante:260,vol:.16},clipes:['gorrath_fala_1','gorrath_fala_2','gorrath_fala_3']},
   ardo:{nome:()=>tr('nomes.ardo'),cor:'#e9c77b',cor2:'#fff4d8',letra:'A',voz:{freq:210,tipo:'triangle',vol:.12}}}});
  $('lang').onclick=()=>{Idioma.alternar();mostraPrevia()};
  $('menu').addEventListener('pointerdown',()=>{ligaSom();if(!Musica.atual)Musica.tema('menu')});
