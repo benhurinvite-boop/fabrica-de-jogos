@@ -1,7 +1,13 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07060a">
-<link rel="icon" href="data:,">
+<link rel="icon" href="icone-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone-apple.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gorrath">
 <title>Gorrath's Crypt</title>
 <link rel="stylesheet" href="../../motor/fontes/fontes.css">
 <link rel="stylesheet" href="estilo.css">
@@ -33,8 +39,10 @@
 </div>
 
 <div id="gire"><div><svg viewBox="0 0 64 64" width="84" height="84" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><rect x="20" y="6" width="24" height="44" rx="4"/><path d="M50 44a18 18 0 0 1-18 14M46 54l4 4 4-4" /></svg><p data-t="gire">Turn your phone sideways to play</p></div></div>
+<div id="dicaIos"><div><h3 data-t="tela.titulo">Play in fullscreen</h3><ol><li data-t="tela.p1"></li><li data-t="tela.p2"></li><li data-t="tela.p3"></li></ol><button class="entrar" id="dicaIosOk" data-t="tela.ok">OK</button></div></div>
 <div id="menu">
  <button id="lang" data-t="lang">PT</button>
+ <button id="telaCheia">⛶ <span data-t="tela.botao">Fullscreen</span></button>
  <header><h1 data-t="titulo">Gorrath's Crypt</h1><p data-t="sub">Floor 1</p></header>
  <div class="esc">
   <div class="classe"><button id="ant" aria-label="Classe anterior">‹</button><div><h2 id="cN">Cavaleiro</h2><p id="cD"></p></div><button id="prox" aria-label="Próxima classe">›</button></div>
@@ -610,6 +618,12 @@ let quadro=0;
  await mostraPrevia();renderer.compile(scene,camera);laco();$('carga').textContent='';$('entrar').disabled=false;Plataforma.carregamentoFim();
  $('ant').onclick=()=>{ESTADO.classe=(ESTADO.classe+CLASSES.length-1)%CLASSES.length;ESTADO.cor=0;mostraPrevia()};$('prox').onclick=()=>{ESTADO.classe=(ESTADO.classe+1)%CLASSES.length;ESTADO.cor=0;mostraPrevia()};
  $('oCor').onclick=()=>{ESTADO.cor=(ESTADO.cor+1)%4;aplicaVisual(previa,CLASSES[ESTADO.classe])};$('oCap').onclick=()=>{ESTADO.cab=!ESTADO.cab;aplicaVisual(previa,CLASSES[ESTADO.classe])};$('oMan').onclick=()=>{ESTADO.capa=!ESTADO.capa;aplicaVisual(previa,CLASSES[ESTADO.classe])};
+ // tela cheia: Android/PC usam o pedido do navegador; iPhone só abre sem barras pelo ícone na Tela de Início
+ const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const APP=navigator.standalone||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+ if(APP||Plataforma.nome!=='nenhuma'||(!IOS&&!document.documentElement.requestFullscreen))$('telaCheia').style.display='none';
+ $('telaCheia').onclick=()=>{if(IOS){$('dicaIos').classList.add('on');return}try{document.documentElement.requestFullscreen().then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})).catch(()=>{})}catch(e){}};
+ $('dicaIosOk').onclick=()=>$('dicaIos').classList.remove('on');
  $('forjaBtn').onclick=()=>{$('forja').classList.toggle('on');desenhaForja($('forja'),tr,atualizaMenu)};
  $('entrar').onclick=()=>{if(Rede.ativo&&!Rede.host)return;if(Rede.ativo){const n=1+Rede.pares.length,sm=Math.floor(Math.random()*1e9);Rede.enviar('inicio',{n,s:sm});comecar(n,sm)}else if(!Meta.liberada(CLASSES[ESTADO.classe].k)){if(Meta.liberar(CLASSES[ESTADO.classe].k)){som('lend');atualizaMenu()}else toast(tr('semOuro'),'ruim')}else comecar(1)};montaLobby();
  window.JOGO={THREE,Coop,Rede,Meta,proximoAndar,andar:()=>ANDAR,get salas(){return salas},Exercito,BONUS,qual:()=>QUAL,Musica,oferecerBencao,PORTAS,SAIDA,ativaSaida,fere,itens,cena:()=>emCena,previa:()=>previa,camera,heroi:()=>heroi,inimigos,ESTADO,habilidade,chefe:()=>chefe,ctrl,teclas,SPAWNS};

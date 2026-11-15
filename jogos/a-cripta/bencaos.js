@@ -28,7 +28,8 @@ const CSS = `#benc{position:fixed;inset:0;z-index:15;display:none;place-items:ce
 @keyframes bcIn{from{opacity:0;transform:translateY(30px) scale(.9)}}
 .bc i{display:block;font-style:normal;font-size:40px;color:var(--c);text-shadow:0 0 18px var(--c)}
 .bc b{display:block;margin:6px 0 2px;font:800 17px 'Cinzel';color:var(--c)}.bc small{display:block;font:800 10px 'Cinzel';letter-spacing:.14em;color:#8a7a5a;text-transform:uppercase}
-.bc span{display:block;margin-top:8px;font:700 14px/1.3 'Alegreya Sans'}.bc em{display:block;margin-top:8px;font:800 11px 'Cinzel';color:#7a6a4a;font-style:normal}`;
+.bc span{display:block;margin-top:8px;font:700 14px/1.3 'Alegreya Sans'}.bc em{display:block;margin-top:8px;font:800 11px 'Cinzel';color:#7a6a4a;font-style:normal}
+@media (orientation:landscape) and (max-height:540px){#benc h3{font-size:clamp(20px,4.4vw,30px)}#benc>div>p{margin-bottom:8px;font-size:10px}.bc{min-width:0;width:min(28vw,180px);padding:10px 8px}.bc i{font-size:28px}.bc b{font-size:14px;margin-top:3px}.bc span{font-size:12.5px;margin-top:4px}.bc em{display:none}}`;
 
 let el = null; const pegas = new Set();
 

@@ -27,6 +27,7 @@ const CSS = `
 #dlgPular{position:fixed;z-index:22;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));display:none;padding:8px 14px;border-radius:4px;
  border:1px solid #6a5230;background:rgba(10,8,6,.85);color:#e9c77b;font:800 12px 'Cinzel',serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 #dlgPular.on{display:block}
+@media (orientation:landscape) and (max-height:540px){#dlg{width:min(70vw,560px);padding:8px 12px 10px;gap:10px;bottom:max(8px,env(safe-area-inset-bottom))}.dlgRet{width:48px;height:48px;font-size:20px}.dlgTxt{font-size:15px;min-height:2.4em}.dlgNome{font-size:11px}#dlgFaixas.on::before,#dlgFaixas.on::after{height:5vh}}
 `;
 
 let cfg = { audio: () => null, personagens: {}, textos: { pular: 'Skip', continuar: 'Tap to continue' } };
